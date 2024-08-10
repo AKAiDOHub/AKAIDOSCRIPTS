@@ -11,6 +11,8 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.K -- Used when theres no MinimizeKeybind
 })
 
+print("AKAIDOHUB|AIMBOT")
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false -- Impede que a GUI seja recriada no respawn
 screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
