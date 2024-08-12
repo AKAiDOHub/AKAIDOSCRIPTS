@@ -35,7 +35,7 @@ uicorner.Parent = button
 local function simulateKeyPress()
     local UserInputService = game:GetService("UserInputService")
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if input.KeyCode == Fluent.MinimizeKey then
+        if input.KeyCode == Enum.KeyCode.K then
         end
     end)
     
@@ -50,9 +50,11 @@ button.MouseButton1Click:Connect(simulateKeyPress)
 -- Tabs
 local Tabs = {
     M = Window:AddTab({ Title = "Aimbot", Icon = "bot" }),
+    F = Window:AddTab({ Title = "Fov", Icon = "circle" }),
     H = Window:AddTab({ Title = "Hitbox", Icon = "box" }),
     V = Window:AddTab({ Title = "Visual", Icon = "terminal" }),
     C = Window:AddTab({ Title = "Crosshair", Icon = "crosshair" }),
+    J = Window:AddTab({ Title = "Players", Icon = "person-standing" }),
     P = Window:AddTab({ Title = "Player", Icon = "user" }),
     S = Window:AddTab({ Title = "Settings", Icon = "sliders-horizontal" })
 }
@@ -66,6 +68,8 @@ local Plr = Players.LocalPlayer
 local Clipon = false
 
 -- -- -- -- -- -- -- ESPS -- -- -- -- -- -- --
+
+
 
 --// Variables
 local Players = game:GetService("Players")
@@ -95,20 +99,28 @@ local ESP_SETTINGS = {
     BoxOutlineColor = Color3.new(0, 0, 0),
     BoxColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
     NameColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
+    TeamColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
     HealthOutlineColor = Color3.new(0, 0, 0),
     HealthHighColor = Color3.new(0, 1, 0),
     HealthLowColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
     SkeletonColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
     LineColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
+    DistanceColor = Color3.new(255 / 255, 255 / 255, 255 / 255), -- Cor do texto de distância
     Teamcheck = false,
     WallCheck = false,
     Enabled = true,
     ShowName = true,
+    ShowTeam = true,
     ShowBox = true,
     ShowHealth = true,
     ShowSkeletons = true,
     ShowLine = true,
+    ShowDistance = true, -- Mostrar distância
     BoxType = "Corner", -- "2D" or "Corner"
+    HealthBarPosition = "Left", -- "Left/Esquerda", "Right/Direita", "Top", "Bottom"
+    LineFromPosition = "Top", -- "Left", "Right", "Top", "Bottom", "Center"
+    NamePosition = "Top", -- "Top" or "Bottom"
+    TeamPosition = "Bottom", -- "Top" or "Bottom"
 }
 
 local function create(class, properties)
@@ -133,6 +145,18 @@ local function createEsp(player)
         }),
         name = create("Text", {
             Color = ESP_SETTINGS.NameColor,
+            Outline = true,
+            Center = true,
+            Size = 13
+        }),
+        team = create("Text", {
+            Color = ESP_SETTINGS.TeamColor,
+            Outline = true,
+            Center = true,
+            Size = 13
+        }),
+        distance = create("Text", {
+            Color = ESP_SETTINGS.DistanceColor,
             Outline = true,
             Center = true,
             Size = 13
@@ -196,13 +220,58 @@ local function updateEsp()
                     local boxSize = Vector2.new(math.floor(charSize * 1.8), math.floor(charSize * 1.9))
                     local boxPosition = Vector2.new(math.floor(hrp2D.X - charSize * 1.8 / 2), math.floor(hrp2D.Y - charSize * 1.6 / 2))
                     
+                    -- Determine team text
+                    local teamText = team and team.Name or "Sem time"
+                    
+                    -- ESP Name and Team Position Logic
+                    local nameOffset = (ESP_SETTINGS.NamePosition == "Top") and -16 or boxSize.Y + 16
+                    local teamOffset = (ESP_SETTINGS.TeamPosition == "Top") and -16 or boxSize.Y + 16
+                    
+                    -- If both Name and Team are set to the same position, adjust their offsets
+                    if ESP_SETTINGS.NamePosition == ESP_SETTINGS.TeamPosition then
+                        if ESP_SETTINGS.NamePosition == "Top" then
+                            nameOffset = -32
+                            teamOffset = -16
+                        else
+                            nameOffset = boxSize.Y + 16
+                            teamOffset = boxSize.Y + 32
+                        end
+                    end
+                    
                     if ESP_SETTINGS.ShowName and ESP_SETTINGS.Enabled then
                         esp.name.Visible = true
                         esp.name.Text = string.lower(player.Name)
-                        esp.name.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y - 16)
+                        esp.name.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y + nameOffset)
                         esp.name.Color = ESP_SETTINGS.NameColor
                     else
                         esp.name.Visible = false
+                    end
+                    
+                    if ESP_SETTINGS.ShowTeam and ESP_SETTINGS.Enabled then
+                        esp.team.Visible = true
+                        esp.team.Text = teamText
+                        esp.team.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y + teamOffset)
+                        esp.team.Color = ESP_SETTINGS.TeamColor
+                    else
+                        esp.team.Visible = false
+                    end
+
+                    -- Determine distance offset based on the visibility of the name
+                    local distanceOffset
+                    if ESP_SETTINGS.ShowName and ESP_SETTINGS.Enabled then
+                        distanceOffset = nameOffset
+                    else
+                        distanceOffset = -16
+                    end
+
+                    if ESP_SETTINGS.ShowDistance and ESP_SETTINGS.Enabled then
+                        esp.distance.Visible = true
+                        local distance = (localPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+                        esp.distance.Text = string.format("%.1f", distance) .. " studs"
+                        esp.distance.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y + distanceOffset)
+                        esp.distance.Color = ESP_SETTINGS.DistanceColor
+                    else
+                        esp.distance.Visible = false
                     end
                     
                     if ESP_SETTINGS.ShowBox and ESP_SETTINGS.Enabled then
@@ -250,6 +319,7 @@ local function updateEsp()
                             boxLines[8].From = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y + boxSize.Y - lineH)
                             boxLines[8].To = Vector2.new(boxPosition.X + boxSize.X + lineT, boxPosition.Y + boxSize.Y + lineT)
                             for _, line in ipairs(boxLines) do
+                                line.Color = ESP_SETTINGS.BoxColor -- Atualizar a cor aqui
                                 line.Visible = true
                             end
                             esp.box.Visible = false
@@ -267,10 +337,38 @@ local function updateEsp()
                         esp.healthOutline.Visible = true
                         esp.health.Visible = true
                         local healthPercentage = humanoid.Health / humanoid.MaxHealth
-                        esp.healthOutline.From = Vector2.new(boxPosition.X - 6, boxPosition.Y + boxSize.Y)
-                        esp.healthOutline.To = Vector2.new(esp.healthOutline.From.X, esp.healthOutline.From.Y - boxSize.Y)
-                        esp.health.From = Vector2.new((boxPosition.X - 5), boxPosition.Y + boxSize.Y)
-                        esp.health.To = Vector2.new(esp.health.From.X, esp.health.From.Y - healthPercentage * boxSize.Y)
+                        local from, to
+
+                        if ESP_SETTINGS.HealthBarPosition == "Left" then
+                            from = Vector2.new(boxPosition.X - 6, boxPosition.Y + boxSize.Y)
+                            to = Vector2.new(from.X, from.Y - boxSize.Y)
+                            esp.healthOutline.From = from
+                            esp.healthOutline.To = to
+                            esp.health.From = Vector2.new((boxPosition.X - 5), boxPosition.Y + boxSize.Y)
+                            esp.health.To = Vector2.new(esp.health.From.X, esp.health.From.Y - healthPercentage * boxSize.Y)
+                        elseif ESP_SETTINGS.HealthBarPosition == "Right" then
+                            from = Vector2.new(boxPosition.X + boxSize.X + 6, boxPosition.Y + boxSize.Y)
+                            to = Vector2.new(from.X, from.Y - boxSize.Y)
+                            esp.healthOutline.From = from
+                            esp.healthOutline.To = to
+                            esp.health.From = Vector2.new((boxPosition.X + boxSize.X + 5), boxPosition.Y + boxSize.Y)
+                            esp.health.To = Vector2.new(esp.health.From.X, esp.health.From.Y - healthPercentage * boxSize.Y)
+                        elseif ESP_SETTINGS.HealthBarPosition == "Top" then
+                            from = Vector2.new(boxPosition.X, boxPosition.Y - 6)
+                            to = Vector2.new(boxPosition.X + boxSize.X, from.Y)
+                            esp.healthOutline.From = from
+                            esp.healthOutline.To = to
+                            esp.health.From = Vector2.new(boxPosition.X, (boxPosition.Y - 5))
+                            esp.health.To = Vector2.new(boxPosition.X + healthPercentage * boxSize.X, esp.health.From.Y)
+                        elseif ESP_SETTINGS.HealthBarPosition == "Bottom" then
+                            from = Vector2.new(boxPosition.X, boxPosition.Y + boxSize.Y + 6)
+                            to = Vector2.new(boxPosition.X + boxSize.X, from.Y)
+                            esp.healthOutline.From = from
+                            esp.healthOutline.To = to
+                            esp.health.From = Vector2.new(boxPosition.X, (boxPosition.Y + boxSize.Y + 5))
+                            esp.health.To = Vector2.new(boxPosition.X + healthPercentage * boxSize.X, esp.health.From.Y)
+                        end
+
                         esp.health.Color = ESP_SETTINGS.HealthLowColor:Lerp(ESP_SETTINGS.HealthHighColor, healthPercentage)
                     else
                         esp.healthOutline.Visible = false
@@ -309,7 +407,21 @@ local function updateEsp()
 
                     if ESP_SETTINGS.ShowLine and ESP_SETTINGS.Enabled then
                         esp.line.Visible = true
-                        esp.line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                        local lineFrom
+
+                        if ESP_SETTINGS.LineFromPosition == "Left" then
+                            lineFrom = Vector2.new(0, camera.ViewportSize.Y / 2)
+                        elseif ESP_SETTINGS.LineFromPosition == "Right" then
+                            lineFrom = Vector2.new(camera.ViewportSize.X, camera.ViewportSize.Y / 2)
+                        elseif ESP_SETTINGS.LineFromPosition == "Top" then
+                            lineFrom = Vector2.new(camera.ViewportSize.X / 2, 0)
+                        elseif ESP_SETTINGS.LineFromPosition == "Bottom" then
+                            lineFrom = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                        elseif ESP_SETTINGS.LineFromPosition == "Center" then
+                            lineFrom = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                        end
+
+                        esp.line.From = lineFrom
                         esp.line.To = Vector2.new(hrp2D.X, hrp2D.Y)
                         esp.line.Color = ESP_SETTINGS.LineColor
                     else
@@ -319,6 +431,8 @@ local function updateEsp()
                     esp.box.Visible = false
                     esp.boxOutline.Visible = false
                     esp.name.Visible = false
+                    esp.team.Visible = false
+                    esp.distance.Visible = false
                     esp.healthOutline.Visible = false
                     esp.health.Visible = false
                     esp.line.Visible = false
@@ -333,6 +447,8 @@ local function updateEsp()
                 esp.box.Visible = false
                 esp.boxOutline.Visible = false
                 esp.name.Visible = false
+                esp.team.Visible = false
+                esp.distance.Visible = false
                 esp.healthOutline.Visible = false
                 esp.health.Visible = false
                 esp.line.Visible = false
@@ -347,6 +463,8 @@ local function updateEsp()
             esp.box.Visible = false
             esp.boxOutline.Visible = false
             esp.name.Visible = false
+            esp.team.Visible = false
+            esp.distance.Visible = false
             esp.healthOutline.Visible = false
             esp.health.Visible = false
             esp.line.Visible = false
@@ -378,7 +496,12 @@ end)
 
 RunService.RenderStepped:Connect(updateEsp)
 
+
+
+
+
 -- -- -- -- -- -- -- AIMBOT -- -- -- -- -- -- --
+
 
 local Cam = workspace.CurrentCamera
 local hotkey = true
@@ -386,6 +509,7 @@ local hotkey = true
 _G.Aimbot = true
 _G.AimbotButton = false
 _G.TeamCheck = true
+_G.TeamCheckType = "Enemies" -- Pode ser "All", "Friends" ou "Enemies"
 _G.Part = "Head"
 
 _G.SafePlayer = nil
@@ -454,17 +578,21 @@ function getClosestVisiblePlayer(trg_part)
             local distance = (AccPos - mousePos).magnitude
             if distance < last and vis and hotkey and distance < 400 then
                 if distance < _G.FovRadius then
-                    -- Adicionado: verificação de equipe
-                    if _G.TeamCheck and player.Team ~= game.Players.LocalPlayer.Team then
-                        if isPlayerVisible(player) then -- Verifica se o jogador está visível
-                            last = distance
-                            nearest = player
-                        end
-                    elseif not _G.TeamCheck then
-                        if isPlayerVisible(player) then -- Verifica se o jogador está visível
-                            last = distance
-                            nearest = player
-                        end
+                    local teamCheck = false
+
+                    if not _G.TeamCheck then
+                        teamCheck = true
+                    elseif _G.TeamCheckType == "All" then
+                        teamCheck = true
+                    elseif _G.TeamCheckType == "Friends" and player.Team == game.Players.LocalPlayer.Team then
+                        teamCheck = true
+                    elseif _G.TeamCheckType == "Enemies" and player.Team ~= game.Players.LocalPlayer.Team then
+                        teamCheck = true
+                    end
+
+                    if teamCheck and isPlayerVisible(player) then
+                        last = distance
+                        nearest = player
                     end
                 end
             end
@@ -493,6 +621,7 @@ game:GetService("RunService").RenderStepped:Connect(function()
         lookAt(Cam.CFrame.p, closest.Character:FindFirstChild(_G.Part).Position)
     end
 end)
+
 
 -- -- -- -- -- -- -- AIMBOT BUTTON -- -- -- -- -- -- --
 
@@ -532,65 +661,6 @@ local function Aimbot()
 end
 
 buttonAimbot.MouseButton1Click:Connect(Aimbot)
-
--- -- -- -- -- -- -- CROSSHAIR + -- -- -- -- -- -- --     
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
-
-local Typing = false
-
-local ViewportSize_ = Camera.ViewportSize / 2
-local Axis_X, Axis_Y = ViewportSize_.X, ViewportSize_.Y
-
-local HorizontalLine = Drawing.new("Line")
-local VerticalLine = Drawing.new("Line")
-
-_G.ToMouse = true   -- If set to true then the crosshair will be positioned to your mouse cursor's position. If set to false it will be positioned to the center of your screen.
-
-_G.CrosshairVisible = true   -- If set to true then the crosshair would be visible and vice versa.
-_G.CrosshairSize = 20   -- The size of the crosshair.
-_G.CrosshairThickness = 1   -- The thickness of the crosshair.
-_G.CrosshairColor = Color3.fromRGB(0, 255, 0)   -- The color of the crosshair
-_G.CrosshairTransparency = 1   -- The transparency of the crosshair.
-
-RunService.RenderStepped:Connect(function()
-    local Real_Size = _G.CrosshairSize / 2
-
-    HorizontalLine.Color = _G.CrosshairColor
-    HorizontalLine.Thickness = _G.CrosshairThickness
-    HorizontalLine.Visible = _G.CrosshairVisible
-    HorizontalLine.Transparency = _G.CrosshairTransparency
-    
-    VerticalLine.Color = _G.CrosshairColor
-    VerticalLine.Thickness = _G.CrosshairThickness
-    VerticalLine.Visible = _G.CrosshairVisible
-    VerticalLine.Transparency = _G.CrosshairTransparency
-    
-    if _G.ToMouse == true then
-        HorizontalLine.From = Vector2.new(UserInputService:GetMouseLocation().X - Real_Size, UserInputService:GetMouseLocation().Y)
-        HorizontalLine.To = Vector2.new(UserInputService:GetMouseLocation().X + Real_Size, UserInputService:GetMouseLocation().Y)
-        
-        VerticalLine.From = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y - Real_Size)
-        VerticalLine.To = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y + Real_Size)
-    elseif _G.ToMouse == false then
-        HorizontalLine.From = Vector2.new(Axis_X - Real_Size, Axis_Y)
-        HorizontalLine.To = Vector2.new(Axis_X + Real_Size, Axis_Y)
-    
-        VerticalLine.From = Vector2.new(Axis_X, Axis_Y - Real_Size)
-        VerticalLine.To = Vector2.new(Axis_X, Axis_Y + Real_Size)
-    end
-end)
-
-UserInputService.TextBoxFocused:Connect(function()
-    Typing = true
-end)
-
-UserInputService.TextBoxFocusReleased:Connect(function()
-    Typing = false
-end)
 
 -- -- -- -- -- -- -- HITBOX -- -- -- -- -- -- --
 
@@ -668,19 +738,23 @@ end
 
 Hitbox()
 
+
+local function G()
+    local red = math.random(0, 255)
+    local green = math.random(0, 255)
+    local blue = math.random(0, 255)
+    return Color3.fromRGB(red, green, blue)
+end
+
 local function HitboxRGB()
     while _G.HitboxRGB == true do
         wait(_G.HitboxRGBTime)
-            _G.HitboxColor = Color3.fromRGB(255, 0, 0)
-        wait(_G.HitboxRGBTime)
-            _G.HitboxColor = Color3.fromRGB(0, 255, 0)
-        wait(_G.HitboxRGBTime)
-            _G.HitboxColor = Color3.fromRGB(0, 0, 255)
+        local randomColor = G()
+        _G.HitboxColor = randomColor
     end
 end
 
 -- -- -- -- -- -- -- Chams -- -- -- -- -- -- --
-
 
 local FillColor = Color3.fromRGB(128, 25, 25)
 local DepthMode = "AlwaysOnTop"
@@ -760,7 +834,7 @@ local Toggle = Tabs.M:AddToggle("MyToggle", {
     Description = "And a function that automatically positions the player's aim towards the head .",
     Default = false,
     Callback = function(Value)
-        _G.Aimbot = not _G.Aimbot
+        _G.Aimbot = Value
     end
 })
 
@@ -769,7 +843,12 @@ local Toggle = Tabs.M:AddToggle("aimbotb", {
     Description = "Adds an on-screen button to activate and deactivate Aimbot.",
     Default = false,
     Callback = function(Value)
-        buttonAimbot.Visible = not buttonAimbot.Visible
+        if Value == true then
+            buttonAimbot.Visible = true
+        else
+            buttonAimbot.Visible = false
+            _G.Aimbot = false
+        end
     end
 })
 
@@ -778,7 +857,7 @@ local Toggle = Tabs.M:AddToggle("team", {
     Description = "Activates a system that makes the Aimbot only target players on the anniversary team.",
     Default = false,
     Callback = function(Value)
-        _G.TeamCheck = not _G.TeamCheck
+        _G.TeamCheck = Value
     end
 })
 
@@ -787,31 +866,22 @@ local Toggle = Tabs.M:AddToggle("Wallcheck", {
     Description = "Activates a system where the Aimbot will only focus on visible players.",
     Default = false,
     Callback = function(Value)
-        _G.WallCheck = not _G.WallCheck
-    end
-})
-
-local blabla = Tabs.M:AddSection("Fov Section")
-
-local Toggle = Tabs.M:AddToggle("fov", {
-    Title = "Aim Fov",
-    Description = "Adds a circle to the middle of the screen if a player enters and the Aimbot will target that player.",
-    Default = false,
-    Callback = function(Value)
-        FovCircle.Visible = not FovCircle.Visible
-    end
-})
-
-local Toggle = Tabs.M:AddToggle("fovcam", {
-    Title = "Fov Alert",
-    Description = "Activates a warning system for the fov.",
-    Default = false,
-    Callback = function(Value)
-        _G.FovColorChangeEnabled = Value
+        _G.WallCheck = Value
     end
 })
 
 local blabla = Tabs.M:AddSection("Aimbot Settings")
+
+local Dropdown = Tabs.M:AddDropdown("dropdown", {
+    Title = "Aimbot Team Check Type.",
+    Values = {"All", "Friend", "Enemies"},
+    Description = "Select the type of Team Check you prefer.",
+    Multi = false,
+    Default = "Enemies",
+    Callback = function(Value)
+        _G.TeamCheckType = Value
+    end
+})
 
 local Toggle = Tabs.M:AddToggle("hudbutton", {
     Title = "Change Hud Aimbot Button",
@@ -877,9 +947,27 @@ Tabs.M:AddButton({
     end
 })
 
-local blabla = Tabs.M:AddSection("Aim Fov Settings")
+local Toggle = Tabs.F:AddToggle("fov", {
+    Title = "Aim Fov",
+    Description = "Adds a circle to the middle of the screen if a player enters and the Aimbot will target that player.",
+    Default = false,
+    Callback = function(Value)
+        FovCircle.Visible = Value
+    end
+})
 
-local Toggle = Tabs.M:AddToggle("jd", {
+local Toggle = Tabs.F:AddToggle("fovcam", {
+    Title = "Fov Alert",
+    Description = "Activates a warning system for the fov.",
+    Default = false,
+    Callback = function(Value)
+        _G.FovColorChangeEnabled = Value
+    end
+})
+
+local blabla = Tabs.F:AddSection("Aim Fov Settings")
+
+local Toggle = Tabs.F:AddToggle("jd", {
     Title = "Fill Fov",
     Description = "Choose whether the fov will be filled or just an empty circle.",
     Default = false,
@@ -888,7 +976,7 @@ local Toggle = Tabs.M:AddToggle("jd", {
     end
 })
 
-local Trans = Tabs.M:AddDropdown("hr", {
+local Trans = Tabs.F:AddDropdown("hr", {
     Title = "Fov Transparency",
     Values = {"0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1"}, 
     Multi = false,
@@ -920,7 +1008,7 @@ local Trans = Tabs.M:AddDropdown("hr", {
     end
 })
 
-local Dropdown = Tabs.M:AddDropdown("precisão", {
+local Dropdown = Tabs.F:AddDropdown("precisão", {
     Title = "Aimbot Accuracy",
     Values = {"25", "35", "50", "70", "100"},
     Multi = false,
@@ -945,16 +1033,14 @@ local Dropdown = Tabs.M:AddDropdown("precisão", {
     end
 })
 
-local Colorpicker = Tabs.M:AddColorpicker("Colorpicker", {
+local Colorpicker = Tabs.F:AddColorpicker("Colorpicker", {
         Title = "Aim Fov Color",
         Default = Color3.fromRGB(128, 25, 25)
     })
     Colorpicker:OnChanged(function()
         _G.FovColor = Colorpicker.Value
         FovCircle.Color = Colorpicker.Value
-    end)
-    
-    
+    end)    
 
 local partHit = Tabs.H:AddDropdown("partHit", {
     Title = "Hitbox Parties",
@@ -980,7 +1066,7 @@ local Toggle = Tabs.H:AddToggle("Hteam", {
     Description = "Activates a system that makes the Hitbox only target players on the anniversary team.",
     Default = false,
     Callback = function(Value)
-        _G.HitboxTeam = not _G.HitboxTeam
+        _G.HitboxTeam = Value
     end
 })
 
@@ -1041,8 +1127,8 @@ ColorpickerHitb:OnChanged(function(Color)
 end)
 
 local Toggle = Tabs.H:AddToggle("urue", {
-    Title = "Hitbox Rgb",
-    Description = "Makes the hitbox flash in Red, Green and Blue colors.",
+    Title = "Hitbox Random Color",
+    Description = "Makes the hitbox flash in random colors.",
     Default = false,
     Callback = function(Value)
         if Value == true then
@@ -1124,6 +1210,24 @@ local Toggle = Tabs.V:AddToggle("Show Name", {
     end
 })
 
+local Toggle = Tabs.V:AddToggle("Show Name", {
+    Title = "Show Distance",
+    Description = "Adds a small text above the players head.",
+    Default = false,
+    Callback = function(value)
+        ESP_SETTINGS.ShowDistance = value
+    end
+})
+
+local Toggle = Tabs.V:AddToggle("Show Name", {
+    Title = "Show Team",
+    Description = "Adds a small text above the players head.",
+    Default = false,
+    Callback = function(value)
+        ESP_SETTINGS.ShowTeam = value
+    end
+})
+
 local Toggle = Tabs.V:AddToggle("Show Chams", {
     Title = "Show Chams",
     Description = "Adds a glow around players.",
@@ -1137,40 +1241,104 @@ local Toggle = Tabs.V:AddToggle("Show Chams", {
     end
 })
 
+local EspSettings = Tabs.V:AddSection("Esp types Settings")
+
+local BoxTypeDropdown = Tabs.V:AddDropdown("BoxType", {
+    Title = "Box Type",
+    Values = {"Corner", "2D"},
+    Description = "Box types",
+    Default = ESP_SETTINGS.BoxType,
+    Callback = function(value)
+      ESP_SETTINGS.BoxType = value
+        -- Ensure only one type of box is visible at a time
+        for _, esp in pairs(cache) do
+            if value == "2D" then
+                esp.box.Visible = ESP_SETTINGS.ShowBox
+                esp.boxOutline.Visible = ESP_SETTINGS.ShowBox
+                for _, line in ipairs(esp.boxLines) do
+                    line.Visible = false
+                end
+            elseif value == "Corner" then
+                for _, line in ipairs(esp.boxLines) do
+                    line.Visible = ESP_SETTINGS.ShowBox
+                end
+                esp.box.Visible = false
+                esp.boxOutline.Visible = false
+            end
+        end
+    end
+})
+
+local LinePosi = Tabs.V:AddDropdown("LinePosi", {
+    Title = "Line Position",
+    Values = {"Left", "Right", "Top", "Bottom", "Center"},
+    Description = "Line Position",
+    Default = ESP_SETTINGS.LineFromPosition,
+    Callback = function(value)
+        ESP_SETTINGS.LineFromPosition = value
+    end
+})
+
+local HealthPosi = Tabs.V:AddDropdown("HealthPosi", {
+    Title = "Health Position",
+    Values = {"Left", "Right", "Top", "Bottom"},
+    Description = "Health Position",
+    Default = ESP_SETTINGS.HealthBarPosition,
+    Callback = function(value)
+        ESP_SETTINGS.HealthBarPosition = value
+    end
+})
+
+local LinePosi = Tabs.V:AddDropdown("LinePosi", {
+    Title = "Team Position",
+    Values = {"Top", "Bottom"},
+    Description = "Team Position",
+    Default = ESP_SETTINGS.TeamPosition,
+    Callback = function(value)
+        ESP_SETTINGS.TeamPosition = value
+    end
+})
+
+local HealthPosi = Tabs.V:AddDropdown("HealthPosi", {
+    Title = "Name Position",
+    Values = {"Top", "Bottom"},
+    Description = "Name Position",
+    Default = ESP_SETTINGS.NamePosition,
+    Callback = function(value)
+        ESP_SETTINGS.NamePosition = value
+    end
+})
+
 local EspSettings = Tabs.V:AddSection("Esp Settings")
 
 _G.RgbEspAll = true
 _G.RgbEspAllSpeed = 0.3
 
+local function getRandomColor()
+    local red = math.random(0, 255)
+    local green = math.random(0, 255)
+    local blue = math.random(0, 255)
+    return Color3.fromRGB(red, green, blue)
+end
+
 local function RgbEspAll()
-      while _G.RgbEspAll == true do
-            wait(_G.RgbEspAllSpeed)
-      ESP_SETTINGS.BoxColor = Color3.fromRGB(255, 0, 0)
-      ESP_SETTINGS.HealthLowColor = Color3.fromRGB(255, 0, 0)
-      ESP_SETTINGS.HealthHighColor = Color3.fromRGB(255, 0, 0)
-      ESP_SETTINGS.SkeletonColor = Color3.fromRGB(255, 0, 0)
-      ESP_SETTINGS.LineColor = Color3.fromRGB(255, 0, 0)
-      ESP_SETTINGS.NameColor = Color3.fromRGB(255, 0, 0)
-            wait(_G.RgbEspAllSpeed)
-      ESP_SETTINGS.BoxColor = Color3.fromRGB(0, 255, 0)
-      ESP_SETTINGS.HealthLowColor = Color3.fromRGB(0, 255, 0)
-      ESP_SETTINGS.HealthHighColor = Color3.fromRGB(0, 255, 0)
-      ESP_SETTINGS.SkeletonColor = Color3.fromRGB(0, 255, 0)
-      ESP_SETTINGS.LineColor = Color3.fromRGB(0, 255, 0)
-      ESP_SETTINGS.NameColor = Color3.fromRGB(0, 255, 0)
-            wait(_G.RgbEspAllSpeed)
-      ESP_SETTINGS.BoxColor = Color3.fromRGB(0, 0, 255)
-      ESP_SETTINGS.HealthLowColor = Color3.fromRGB(0, 0, 255)
-      ESP_SETTINGS.HealthHighColor = Color3.fromRGB(0, 0, 255)
-      ESP_SETTINGS.SkeletonColor = Color3.fromRGB(0, 0, 255)
-      ESP_SETTINGS.LineColor = Color3.fromRGB(0, 0, 255)
-      ESP_SETTINGS.NameColor = Color3.fromRGB(0, 0, 255)
-      end
+    while _G.RgbEspAll == true do
+        wait(_G.RgbEspAllSpeed)
+        local randomColor = getRandomColor()
+        ESP_SETTINGS.BoxColor = randomColor
+        ESP_SETTINGS.HealthLowColor = randomColor
+        ESP_SETTINGS.HealthHighColor = randomColor
+        ESP_SETTINGS.SkeletonColor = randomColor
+        ESP_SETTINGS.LineColor = randomColor
+        ESP_SETTINGS.NameColor = randomColor
+        ESP_SETTINGS.TeamColor = randomColor
+        ESP_SETTINGS.DistanceColor = randomColor
+    end
 end
 
 local Toggle = Tabs.V:AddToggle("rgball", {
-    Title = "Rgb All Esp",
-    Description = "Adds a glow around players.",
+    Title = "Random Color All Esp",
+    Description = "Makes all Esp flash random colors.",
     Default = false,
     Callback = function(Value)
         _G.RgbEspAll = Value
@@ -1206,32 +1374,6 @@ local Trans = Tabs.V:AddDropdown("CTrans", {
             _G.RgbEspAllSpeed = 0.9
         elseif Value == "1" then
             _G.RgbEspAllSpeed = 1
-        end
-    end
-})
-
-local BoxTypeDropdown = Tabs.V:AddDropdown("BoxType", {
-    Title = "Box Type",
-    Values = {"Corner", "2D"},
-    Description = "Box types",
-    Default = ESP_SETTINGS.BoxType,
-    Callback = function(value)
-      ESP_SETTINGS.BoxType = value
-        -- Ensure only one type of box is visible at a time
-        for _, esp in pairs(cache) do
-            if value == "2D" then
-                esp.box.Visible = ESP_SETTINGS.ShowBox
-                esp.boxOutline.Visible = ESP_SETTINGS.ShowBox
-                for _, line in ipairs(esp.boxLines) do
-                    line.Visible = false
-                end
-            elseif value == "Corner" then
-                for _, line in ipairs(esp.boxLines) do
-                    line.Visible = ESP_SETTINGS.ShowBox
-                end
-                esp.box.Visible = false
-                esp.boxOutline.Visible = false
-            end
         end
     end
 })
@@ -1290,6 +1432,25 @@ local NameColor = Tabs.V:AddColorpicker("NameColor", {
     end
 })
 
+local NameColor = Tabs.V:AddColorpicker("NameColor", {
+    Title = "Team Color",
+    Description = "Change the color of the esp.",
+    Default = ESP_SETTINGS.TeamColor,
+    Callback = function(color)
+        ESP_SETTINGS.TeamColor = color
+    end
+})
+
+local NameColor = Tabs.V:AddColorpicker("NameColor", {
+    Title = "Distance Color",
+    Description = "Change the color of the esp.",
+    Default = ESP_SETTINGS.DistanceColor,
+    Callback = function(color)
+        ESP_SETTINGS.DistanceColor = color
+    end
+})
+
+
 local gj = Tabs.C:AddToggle("Cros", {
     Title = "Crosshair •",
     Description = "Adds a small circle acting as a crosshair.",
@@ -1297,15 +1458,6 @@ local gj = Tabs.C:AddToggle("Cros", {
     Callback = function(Value)
         Croshair.Visible = not Croshair.Visible
     end 
-})
-
-local Toggle = Tabs.C:AddToggle("Cross", {
-    Title = "Crosshair +", 
-    Description = "Adds a small plus function as a crosshair.",
-    Default = false,
-    Callback = function(Value)
-        _G.CrosshairVisible = Value
-    end
 })
 
 local blabla = Tabs.C:AddSection("Crosshair Point Settings")
@@ -1372,30 +1524,35 @@ ColorpickerHH:OnChanged(function()
     Croshair.Color = ColorpickerHH.Value
 end)
 
-_G.RGBPonto = true
-_G.RGBTime = 0.3
+_G.RgbPonto = true
+_G.RgbPontoSp = 0.3
 
-local function RGBPonto()
-    while _G.RGBPonto == true do
-        wait(_G.RGBTime)
-            Croshair.Color = Color3.fromRGB(255, 0, 0)
-        wait(_G.RGBTime)
-            Croshair.Color = Color3.fromRGB(0, 255, 0)
-        wait(_G.RGBTime)
-            Croshair.Color = Color3.fromRGB(0, 0, 255)
+local function R()
+    local red = math.random(0, 255)
+    local green = math.random(0, 255)
+    local blue = math.random(0, 255)
+    return Color3.fromRGB(red, green, blue)
+end
+
+local function RgbPonto()
+    while _G.RgbPonto == true do
+        wait(_G.RgbPontoSp)
+        local randomColor = R()
+        Croshair.Color = randomColor
     end
 end
 
+
 local Toggle = Tabs.C:AddToggle("k", {
-    Title = "Crosshair RGB",
-    Description = "Let the crosshair blink Red, Green and Blue.",
+    Title = "Crosshair Random Color",
+    Description = "Let the crosshair blink random color.",
     Default = false,
     Callback = function(Value)
         if Value == true then
-            _G.RGBPonto = true
-            RGBPonto()
+            _G.RgbPonto = true
+            RgbPonto()
         else
-            _G.RGBPonto = false
+            _G.RgbPonto = false
             Croshair.Color = Color3.fromRGB(128, 25, 25)
         end
     end
@@ -1433,61 +1590,116 @@ local Trans = Tabs.C:AddDropdown("CTrans", {
     end
 })
 
-local blabla = Tabs.C:AddSection("Crosshair Cross Settings")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
-local Trans = Tabs.C:AddDropdown("CTrans", {
-    Title = "Crosshair Transparency",
-    Values = {"0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1"}, 
-    Multi = false,
-    Default = "1",
+local function ViewPl()
+    local plN = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        table.insert(plN, player.Name)
+    end
+    return plN
+end
+
+-- Variável para armazenar o jogador que está sendo espectado
+local currentSpectatePlayer = nil
+
+-- Toggle para ativar/desativar a visualização de jogadores
+local Toggle = Tabs.J:AddToggle("ViewJ", {
+    Title = "View Jogador",
+    Description = "By activating the function it will be possible to spectate the players.",
+    Default = false,
     Callback = function(Value)
-        if Value == "0" then
-            _G.CrosshairTransparency = 0
-        elseif Value == "0.1" then
-            _G.CrosshairTransparency = 0.1
-        elseif Value == "0.2" then
-            _G.CrosshairTransparency = 0.2
-        elseif Value == "0.3" then
-            _G.CrosshairTransparency = 0.3
-        elseif Value == "0.4" then
-            _G.CrosshairTransparency = 0.4
-        elseif Value == "0.5" then
-            _G.CrosshairTransparency = 0.5
-        elseif Value == "0.6" then
-            _G.CrosshairTransparency = 0.6
-        elseif Value == "0.7" then
-            _G.CrosshairTransparency = 0.7
-        elseif Value == "0.8" then
-            _G.CrosshairTransparency = 0.8
-        elseif Value == "0.9" then
-            _G.CrosshairTransparency = 0.9
-        elseif Value == "1" then
-            _G.CrosshairTransparency = 1
+        if Value then
+            -- Ativar espectador
+            print("Spectator mode activated.")
+            if currentSpectatePlayer and currentSpectatePlayer.Character then
+                Workspace.CurrentCamera.CameraSubject = currentSpectatePlayer.Character:FindFirstChildOfClass("Humanoid")
+            end
+        else
+            -- Desativar espectador e voltar à visão do próprio jogador
+            print("Spectator mode deactivated.")
+            if Players.LocalPlayer.Character then
+                Workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            end
         end
     end
 })
 
-local Slider = Tabs.C:AddSlider("CrosZ", {
-    Title = "Crosshair Size",
-    Description = "Change crosshair size at any time",
-    Default = 2,
-    Min = 1,
-    Max = 20,
-    Rounding = 1,
+-- Dropdown para selecionar jogadores para espectar
+local View = Tabs.J:AddDropdown("View", {
+    Title = "Spectate Players",
+    Description = "Select Players to spectate.",
+    Values = ViewPl(), -- Adiciona os nomes dos jogadores aqui
+    Multi = false,
+    Default = 1,
     Callback = function(Value)
-        _G.CrosshairSize = Value
+        -- Atualizar o jogador que está sendo espectado
+        local selectedPlayer = Players:FindFirstChild(Value)
+        if selectedPlayer then
+            currentSpectatePlayer = selectedPlayer
+            if Toggle.Value and currentSpectatePlayer.Character then
+                Workspace.CurrentCamera.CameraSubject = currentSpectatePlayer.Character:FindFirstChildOfClass("Humanoid")
+            end
+        end
     end
 })
 
-local ColorpickerMM = Tabs.C:AddColorpicker("ColorpickerMM", {
-    Title = "Crosshair Color +",
-    Description = "Change crosshair color.",
-    Default = Color3.fromRGB(128, 25, 25)
-})
-ColorpickerMM:OnChanged(function()
-    _G.CrosshairColor = ColorpickerMM.Value
-end)
+-- Função para atualizar a lista de jogadores no dropdown
+local function UPView()
+    View:SetValues(ViewPl())
+end
 
+-- Conectar eventos de adição e remoção de jogadores para atualizar a lista
+Players.PlayerAdded:Connect(UPView)
+Players.PlayerRemoving:Connect(UPView)
+
+-- Chamar UPView inicialmente para preencher o dropdown
+UPView()
+
+local function getPlayerNames()
+    local playerNames = {}
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        table.insert(playerNames, player.Name)
+    end
+    return playerNames
+end
+
+local TpPl = Tabs.J:AddDropdown("TpPl", {
+    Title = "Teleports to players",
+    Description = "Select players for instant teleports to them",
+    Values = getPlayerNames(), -- Adiciona os nomes dos jogadores aqui
+    Multi = false,
+    Default = 1,
+    Callback = function(Value) -- Callback para a função de teleporte
+        local player = game:GetService("Players"):FindFirstChild(Value)
+    if player then
+        local character = player.Character
+        if character then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                -- Teleporta o jogador para a posição do HumanoidRootPart
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = humanoidRootPart.CFrame
+            end
+        end
+    end
+    end
+})
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+
+local function updatePlayerNamesDropdown()
+    TpPl:SetValues(getPlayerNames())
+end
+
+-- Conectar eventos de adição e remoção de jogadores para atualizar a lista
+Players.PlayerAdded:Connect(updatePlayerNamesDropdown())
+Players.PlayerRemoving:Connect(updatePlayerNamesDropdown())
+
+-- Chamar UPView inicialmente para preencher o dropdown
+updatePlayerNamesDropdown()
 
 speeds = 1
 local speaker = game:GetService("Players").LocalPlayer
@@ -1757,40 +1969,6 @@ local Toggle = Tabs.P:AddToggle("Noclip", {
     end
 })
 
-local function getPlayerNames()
-    local playerNames = {}
-    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-        table.insert(playerNames, player.Name)
-    end
-    return playerNames
-end
-
-local TpPl = Tabs.P:AddDropdown("TpPl", {
-    Title = "Teleports to players",
-    Description = "Select players for instant teleports to them",
-    Values = getPlayerNames(), -- Adiciona os nomes dos jogadores aqui
-    Multi = false,
-    Default = 1,
-    Callback = function(Value) -- Callback para a função de teleporte
-        local player = game:GetService("Players"):FindFirstChild(Value)
-    if player then
-        local character = player.Character
-        if character then
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                -- Teleporta o jogador para a posição do HumanoidRootPart
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = humanoidRootPart.CFrame
-            end
-        end
-    end
-    end
-})
-
-local function updatePlayerNamesDropdown()
-    local playerNames = getPlayerNames()
-    TpPl:SetValues(playerNames)
-end
-
 _G.SpeedHack = true
 _G.SpeedHackSp = 16
 
@@ -1806,8 +1984,12 @@ local Toggle = Tabs.P:AddToggle("j", {
     Description = "Activates the speed hack.",
     Default = false,
     Callback = function(Value)
-        _G.SpeedHack = Value
-        SpeedHack()
+        if Value == true then
+            _G.SpeedHack = Value
+            SpeedHack()
+        else
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
     end
 })
 
@@ -1838,8 +2020,12 @@ local Toggle = Tabs.P:AddToggle("j", {
     Description = "Activates the jump hack.",
     Default = false,
     Callback = function(Value)
-        _G.JumpHack = Value
-        JumpHack()
+        if Value == true then
+            _G.JumpHack = Value
+            JumpHack()
+        else
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
+        end
     end
 })
     
@@ -1854,14 +2040,6 @@ local Slider = Tabs.P:AddSlider("jump", {
             _G.JumpHackF = Value
         end
     })
-    
-Tabs.P:AddButton({
-    Title = "Update Players",
-    Description = "Update the player list",
-    Callback = function()
-        updatePlayerNamesDropdown()
-    end
-})
 
 _G.TemaRGB = false
 _G.TemaTime = 0.3
@@ -1946,6 +2124,20 @@ local f = Tabs.S:AddToggle("opam", {
     end
 })
 
+Tabs.S:AddButton({
+    Title = "Open default location button",
+    Description = "This button teleports the open button to its default location.",
+    Callback = function()
+        button.Position = UDim2.new(0, 70, 0, 25)
+    end
+})
+
+Tabs.S:AddButton({
+    Title = "Aimbot default location button",
+    Description = "This button teleports the aimbot button to its default location.",
+    Callback = function()
+        buttonAimbot.Position = UDim2.new(0, 170, 0, -25)
+    end
+})
+
 return ESP_SETTINGS
-
-
