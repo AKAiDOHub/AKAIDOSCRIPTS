@@ -71,6 +71,7 @@ local Clipon = false
 
 
 
+
 --// Variables
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -105,22 +106,20 @@ local ESP_SETTINGS = {
     HealthLowColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
     SkeletonColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
     LineColor = Color3.new(128 / 255, 25 / 255, 25 / 255),
-    DistanceColor = Color3.new(255 / 255, 255 / 255, 255 / 255), -- Cor do texto de distância
     Teamcheck = false,
     WallCheck = false,
     Enabled = true,
-    ShowName = true,
-    ShowTeam = true,
-    ShowBox = true,
-    ShowHealth = true,
-    ShowSkeletons = true,
-    ShowLine = true,
-    ShowDistance = true, -- Mostrar distância
+    ShowName = false,
+    ShowTeam = false,
+    ShowBox = false,
+    ShowHealth = false,
+    ShowSkeletons = false,
+    ShowLine = false,
     BoxType = "Corner", -- "2D" or "Corner"
     HealthBarPosition = "Left", -- "Left/Esquerda", "Right/Direita", "Top", "Bottom"
     LineFromPosition = "Top", -- "Left", "Right", "Top", "Bottom", "Center"
     NamePosition = "Top", -- "Top" or "Bottom"
-    TeamPosition = "Bottom", -- "Top" or "Bottom"
+    TeamPosition = "Bottom" -- "Top" or "Bottom"
 }
 
 local function create(class, properties)
@@ -151,12 +150,6 @@ local function createEsp(player)
         }),
         team = create("Text", {
             Color = ESP_SETTINGS.TeamColor,
-            Outline = true,
-            Center = true,
-            Size = 13
-        }),
-        distance = create("Text", {
-            Color = ESP_SETTINGS.DistanceColor,
             Outline = true,
             Center = true,
             Size = 13
@@ -254,24 +247,6 @@ local function updateEsp()
                         esp.team.Color = ESP_SETTINGS.TeamColor
                     else
                         esp.team.Visible = false
-                    end
-
-                    -- Determine distance offset based on the visibility of the name
-                    local distanceOffset
-                    if ESP_SETTINGS.ShowName and ESP_SETTINGS.Enabled then
-                        distanceOffset = nameOffset
-                    else
-                        distanceOffset = -16
-                    end
-
-                    if ESP_SETTINGS.ShowDistance and ESP_SETTINGS.Enabled then
-                        esp.distance.Visible = true
-                        local distance = (localPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-                        esp.distance.Text = string.format("%.1f", distance) .. " studs"
-                        esp.distance.Position = Vector2.new(boxSize.X / 2 + boxPosition.X, boxPosition.Y + distanceOffset)
-                        esp.distance.Color = ESP_SETTINGS.DistanceColor
-                    else
-                        esp.distance.Visible = false
                     end
                     
                     if ESP_SETTINGS.ShowBox and ESP_SETTINGS.Enabled then
@@ -432,7 +407,6 @@ local function updateEsp()
                     esp.boxOutline.Visible = false
                     esp.name.Visible = false
                     esp.team.Visible = false
-                    esp.distance.Visible = false
                     esp.healthOutline.Visible = false
                     esp.health.Visible = false
                     esp.line.Visible = false
@@ -448,7 +422,6 @@ local function updateEsp()
                 esp.boxOutline.Visible = false
                 esp.name.Visible = false
                 esp.team.Visible = false
-                esp.distance.Visible = false
                 esp.healthOutline.Visible = false
                 esp.health.Visible = false
                 esp.line.Visible = false
@@ -464,7 +437,6 @@ local function updateEsp()
             esp.boxOutline.Visible = false
             esp.name.Visible = false
             esp.team.Visible = false
-            esp.distance.Visible = false
             esp.healthOutline.Visible = false
             esp.health.Visible = false
             esp.line.Visible = false
@@ -497,34 +469,31 @@ end)
 RunService.RenderStepped:Connect(updateEsp)
 
 
-
-
-
 -- -- -- -- -- -- -- AIMBOT -- -- -- -- -- -- --
 
 
 local Cam = workspace.CurrentCamera
 local hotkey = true
 
-_G.Aimbot = true
+_G.Aimbot = false
 _G.AimbotButton = false
-_G.TeamCheck = true
+_G.TeamCheck = false
 _G.TeamCheckType = "Enemies" -- Pode ser "All", "Friends" ou "Enemies"
 _G.Part = "Head"
 
 _G.SafePlayer = nil
 
-_G.Fov = true
-_G.FovPreencher = true
+_G.Fov = false
+_G.FovPreencher = false
 _G.FovRadius = 50
 _G.FovColor = Color3.new(128/255, 25/255, 25/255)
 _G.FovAlertColor = Color3.new(240/255, 240/255, 240/255) -- Cor de alerta
 _G.FovColorChangeEnabled = true -- Variável para ativar/desativar a mudança de cor
 
-_G.WallCheck = true  -- Ativar/Desativar o WallCheck
+_G.WallCheck = false  -- Ativar/Desativar o WallCheck
 
-_G.Crossahair = true
-_G.Preencher = true
+_G.Crossahair = false
+_G.Preencher = false
 _G.CrosshairColor2 = Color3.new(128/255, 25/255, 25/255)
 _G.CrosshairRadius = 2
 _G.CrosshairTrans = 1
@@ -578,21 +547,16 @@ function getClosestVisiblePlayer(trg_part)
             local distance = (AccPos - mousePos).magnitude
             if distance < last and vis and hotkey and distance < 400 then
                 if distance < _G.FovRadius then
-                    local teamCheck = false
-
-                    if not _G.TeamCheck then
-                        teamCheck = true
-                    elseif _G.TeamCheckType == "All" then
-                        teamCheck = true
-                    elseif _G.TeamCheckType == "Friends" and player.Team == game.Players.LocalPlayer.Team then
-                        teamCheck = true
-                    elseif _G.TeamCheckType == "Enemies" and player.Team ~= game.Players.LocalPlayer.Team then
-                        teamCheck = true
-                    end
-
-                    if teamCheck and isPlayerVisible(player) then
-                        last = distance
-                        nearest = player
+                    if _G.TeamCheck and player.Team ~= game.Players.LocalPlayer.Team then
+                        if isPlayerVisible(player) then -- Verifica se o jogador está visível
+                            last = distance
+                            nearest = player
+                        end
+                    elseif not _G.TeamCheck then
+                        if isPlayerVisible(player) then -- Verifica se o jogador está visível
+                            last = distance
+                            nearest = player
+                        end
                     end
                 end
             end
@@ -635,7 +599,7 @@ local buttonAimbot = Instance.new("TextButton")
 buttonAimbot.Size = UDim2.new(0, 69, 0, 69)
 buttonAimbot.Position = UDim2.new(0, 170, 0, -25)
 buttonAimbot.Text = "Aimbot Off"
-buttonAimbot.Visible = true
+buttonAimbot.Visible = false
 buttonAimbot.TextColor3 = Color3.fromRGB(240, 240, 240)
 buttonAimbot.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 buttonAimbot.BorderSizePixel = 0
@@ -664,9 +628,9 @@ buttonAimbot.MouseButton1Click:Connect(Aimbot)
 
 -- -- -- -- -- -- -- HITBOX -- -- -- -- -- -- --
 
-_G.Hitbox = true
-_G.HitboxRGB = true
-_G.HitboxTeam = true
+_G.Hitbox = false
+_G.HitboxRGB = false
+_G.HitboxTeam = false
 _G.HitboxRGBTime = 0.3
 _G.HitboxSize = 20
 _G.HitboxTransparency = 0.7
@@ -771,7 +735,7 @@ local Storage = Instance.new("Folder")
 Storage.Parent = CoreGui
 Storage.Name = "Highlight_Storage"
 
-_G.HighlightEnabled = true -- Variável de ativação
+_G.HighlightEnabled = false -- Variável de ativação
 
 local function Highlight(plr)
     if not _G.HighlightEnabled then return end -- Verifica se o destaque está ativado
@@ -871,17 +835,6 @@ local Toggle = Tabs.M:AddToggle("Wallcheck", {
 })
 
 local blabla = Tabs.M:AddSection("Aimbot Settings")
-
-local Dropdown = Tabs.M:AddDropdown("dropdown", {
-    Title = "Aimbot Team Check Type.",
-    Values = {"All", "Friend", "Enemies"},
-    Description = "Select the type of Team Check you prefer.",
-    Multi = false,
-    Default = "Enemies",
-    Callback = function(Value)
-        _G.TeamCheckType = Value
-    end
-})
 
 local Toggle = Tabs.M:AddToggle("hudbutton", {
     Title = "Change Hud Aimbot Button",
@@ -1211,15 +1164,6 @@ local Toggle = Tabs.V:AddToggle("Show Name", {
 })
 
 local Toggle = Tabs.V:AddToggle("Show Name", {
-    Title = "Show Distance",
-    Description = "Adds a small text above the players head.",
-    Default = false,
-    Callback = function(value)
-        ESP_SETTINGS.ShowDistance = value
-    end
-})
-
-local Toggle = Tabs.V:AddToggle("Show Name", {
     Title = "Show Team",
     Description = "Adds a small text above the players head.",
     Default = false,
@@ -1332,7 +1276,6 @@ local function RgbEspAll()
         ESP_SETTINGS.LineColor = randomColor
         ESP_SETTINGS.NameColor = randomColor
         ESP_SETTINGS.TeamColor = randomColor
-        ESP_SETTINGS.DistanceColor = randomColor
     end
 end
 
@@ -1440,16 +1383,6 @@ local NameColor = Tabs.V:AddColorpicker("NameColor", {
         ESP_SETTINGS.TeamColor = color
     end
 })
-
-local NameColor = Tabs.V:AddColorpicker("NameColor", {
-    Title = "Distance Color",
-    Description = "Change the color of the esp.",
-    Default = ESP_SETTINGS.DistanceColor,
-    Callback = function(color)
-        ESP_SETTINGS.DistanceColor = color
-    end
-})
-
 
 local gj = Tabs.C:AddToggle("Cros", {
     Title = "Crosshair •",
